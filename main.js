@@ -164,6 +164,59 @@ const submitMathAnswer = document.getElementById('submitMathAnswer');
 const cancelMathQuestion = document.getElementById('cancelMathQuestion');
 const mathFeedback = document.getElementById('mathFeedback');
 
+// === DYNAMIC COMMENT & RATING (Win Overlay) ===
+const commentRatingForm = document.getElementById('commentRatingForm');
+const userComment = document.getElementById('userComment');
+const userRating = document.getElementById('userRating');
+const commentsContainer = document.getElementById('commentsContainer');
+let sessionComments = [];
+
+function renderComments() {
+    commentsContainer.innerHTML = '';
+    if (!sessionComments.length) return;
+    sessionComments.forEach(({ comment, rating }, index) => {
+        const div = document.createElement('div');
+        div.style = 'margin-bottom: 9px; padding: 7px 12px; background: #fff; border-radius: 6px; border:1px solid #ececec; box-shadow:0 1px 6px #dedede22;';
+        div.innerHTML = `<span title="${rating} star${rating > 1 ? 's' : ''}">
+          ${'★'.repeat(rating) + '☆'.repeat(5 - rating)}</span>: <span>${comment.replace(/[<>]/g,'')}</span>`;
+        commentsContainer.appendChild(div);
+    });
+}
+
+if (commentRatingForm) {
+  commentRatingForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const comment = userComment.value.trim();
+    const rating = parseInt(userRating.value) || 3;
+    if (comment.length === 0) return;
+    sessionComments.push({ comment, rating });
+    renderComments();
+    userComment.value = '';
+    userRating.value = '3';
+  });
+}
+
+// === DYNAMIC AI FEEDBACK FOR REFLEX RATING ===
+const aiReflexComment = document.getElementById('aiReflexComment');
+function getReflexComment(finalScore, totalDifferences, combo) {
+    const { timeBonus, totalRoundScore, timeRemaining } = finalScore;
+    const ratio = totalRoundScore / (totalDifferences * 20 + 30);
+    // Use both time and combo influence for feedback
+    if (timeRemaining > 0.5 * totalTimer && combo >= 2) {
+        return "⚡ Lightning reflexes! You spotted differences in record time.";
+    } else if (combo >= 2 && timeRemaining > 0.2 * totalTimer) {
+        return "🔥 Sharp eyes and steady hands! Impressive spotting.";
+    } else if (timeRemaining === 0) {
+        return "Phew! Just made it before time ran out. Good persistence!";
+    } else if (combo === 1) {
+        return "You spotted them one by one—a careful approach!";
+    } else if (timeRemaining < 10) {
+        return "Saved by the bell! Try even faster next time.";
+    } else {
+        return "You found them all—great job!";
+    }
+}
+
 // ============================================
 // GAME STATE VARIABLES
 // ============================================
@@ -1932,6 +1985,11 @@ function endGameWin() {
     timeRemainingDisplay.textContent = finalScore.timeRemaining;
     
     setTimeout(() => {
+        // Show AI reflex comment:
+        if (aiReflexComment) {
+            const comboFound = comboCount > 1 ? comboCount : (foundDifferences.length > 1 ? 2 : 1);
+            aiReflexComment.textContent = getReflexComment(finalScore, totalDifferences, comboFound);
+        }
         winOverlay.classList.remove('hidden');
     }, 300);
 }
